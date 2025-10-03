@@ -1,50 +1,55 @@
-from fastapi import APIRouter, UploadFile, File, Depends
-from sqlalchemy.orm import Session
-import pandas as pd
-from backend.database import SessionLocal
+import glob
 import os
+from fastapi import APIRouter, UploadFile, File
+import pandas as pd
 
 router = APIRouter()
 
+# Directory for uploaded CSVs
 UPLOAD_DIR = "data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/upload")
 async def upload_transactions(file: UploadFile = File(...)):
     """
     Upload a CSV of transactions.
-    Expected columns: description, category (optional), amount, date
+    Expected columns: date, description, amount, category
     """
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
+    # Save the uploaded file
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    df = pd.read_csv(file_path)
+    # Optional: verify CSV can be read
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to read CSV: {e}"}
 
-    clean_path = os.path.join("data", "transactions.csv")
-    df.to_csv(clean_path, index=False)
-
-    return {"status": "success", "rows": len(df)}
+    return {"status": "success", "filename": file.filename, "rows": len(df)}
 
 
 @router.get("/all")
 async def get_transactions():
     """
-    Return all stored transactions as JSON.
+    Returns combined transactions from all CSVs in data/uploads/
     """
-    file_path = os.path.join("data", "transactions.csv")
-    if not os.path.exists(file_path):
+    files = glob.glob(os.path.join(UPLOAD_DIR, "*.csv"))
+    if not files:
         return {"transactions": []}
 
-    df = pd.read_csv(file_path)
+    # Combine all CSVs
+    df_list = []
+    for f in files:
+        try:
+            df_list.append(pd.read_csv(f))
+        except Exception:
+            continue  # skip invalid CSVs
+
+    if not df_list:
+        return {"transactions": []}
+
+    df = pd.concat(df_list, ignore_index=True)
     return {"transactions": df.to_dict(orient="records")}
