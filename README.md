@@ -7,7 +7,8 @@ A personal finance dashboard built with FastAPI (backend) and Streamlit (fronten
 DEMO
 ---
 
-![Uploading ezgif.com-video-to-gif-converter (7).gif…]()
+![ezgif com-video-to-gif-converter (7)](https://github.com/user-attachments/assets/a7eda8cb-7cbb-4a7b-abb7-522b329ed39a)
+
 
 ---
 Features
